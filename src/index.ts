@@ -65,3 +65,4 @@ export { AutoplayManager } from './features/AutoplayManager.js';
 export { FastSpinManager } from './features/FastSpinManager.js';
 export { FullscreenManager } from './features/FullscreenManager.js';
 export { ScreenShake } from './features/ScreenShake.js';
+export { DebugManager } from './features/DebugManager.js';
