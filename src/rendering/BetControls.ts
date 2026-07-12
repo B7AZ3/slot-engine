@@ -12,6 +12,7 @@ export class BetControls {
   private betUpButton: Button;
   private config: IUIConfig;
   private state: GameState;
+  private fastSpinToggle: Button;
   private cleanup: () => void;
 
   constructor(parent: PIXI.Container, state: GameState, config: IUIConfig) {
@@ -72,6 +73,24 @@ export class BetControls {
     this.betUpButton.setPosition(60, 10);
     this.betUpButton.onClick(() => this.increaseBet());
 
+    // Fast spin toggle
+    this.fastSpinToggle = new Button(
+      this.container,
+      {
+        defaultTexture: 'btn_fastspin_off',
+        hoverTexture: 'btn_fastspin_on',
+        pressedTexture: 'btn_fastspin_on',
+        elastic: true,
+        scale: 0.8,
+      },
+      40, 40
+    );
+    this.fastSpinToggle.setPosition(120, 10);
+    this.fastSpinToggle.onClick(() => {
+      // Emit event
+      this.state.isFastSpin = !this.state.isFastSpin
+    });
+
     // Subscribe to bet changes
     this.cleanup = this.state.on('currentBet', (newBet) => {
       this.updateBetDisplay(newBet);
@@ -121,6 +140,11 @@ export class BetControls {
       currencyPosition: 'prefix',
     });
     this.betText.text = formatted;
+  }
+
+  // Fast spin state
+  setFastSpinEnabled(enabled: boolean): void {
+    this.fastSpinToggle.setTexture(enabled ? 'btn_fastspin_on' : 'btn_fastspin_off');
   }
 
   /**

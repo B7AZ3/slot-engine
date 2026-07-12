@@ -9,6 +9,8 @@ export class ReelRenderer implements IResizeable {
   private config: IReelConfig;
   private symbolMap: SymbolMap;
   private scale: number = 1;
+  private speedMultiplier: number = 1;
+  private skipDelay: boolean = false;
 
   // Callbacks
   private onSpinStartCallback?: () => void;
@@ -65,6 +67,22 @@ export class ReelRenderer implements IResizeable {
       this.reels[i]!.setSymbols(result[i]!);
     }
   }
+
+  setSpeedMultiplier(multiplier: number): void {
+    this.speedMultiplier = Math.max(0.5, Math.min(5, multiplier));
+    // Pass to each reel
+    for (const reel of this.reels) {
+      reel.setSpeedMultiplier(this.speedMultiplier);
+    }
+  }
+
+  setSkipDelay(skip: boolean): void {
+    this.skipDelay = skip;
+    for (const reel of this.reels) {
+      reel.setSkipDelay(skip);
+    }
+  }
+
 
   /**
    * Start spinning all reels.
@@ -144,6 +162,8 @@ class Reel {
   private tween: gsap.core.Tween | null = null;
   private scale: number = 1;
   private currentY: number = 0;
+  private speedMultiplier: number = 1;
+  private skipDelay: boolean = false;
 
   constructor(
     parent: PIXI.Container,
@@ -240,6 +260,14 @@ class Reel {
     this.alignToCenter();
   }
 
+  setSpeedMultiplier(multiplier: number): void {
+    this.speedMultiplier = multiplier;
+  }
+
+  setSkipDelay(skip: boolean): void {
+    this.skipDelay = skip;
+  }
+
   /**
    * Start spinning this reel.
    */
@@ -253,7 +281,7 @@ class Reel {
     this._isSpinning = true;
 
     // Determine a random spin duration and distance.
-    const duration = 1.5 + Math.random() * 1.0;
+    const duration = (1.5 + Math.random() * 1.0) / this.speedMultiplier;
     const distance = this.totalSymbols * this.symbolHeight * (2 + Math.random() * 3);
 
     // Animate the strip moving downward (positive y) and then stop.
@@ -287,12 +315,6 @@ class Reel {
       return;
     }
 
-    // We need to calculate the target y so that the strip aligns such that
-    // the symbols in `symbolIds` are in the visible rows.
-    // We'll assume the visible rows are centered around the strip's current position.
-    // A simpler approach: we shift the strip so that the first symbol is at the top.
-    // This is similar to `setSymbols` but applied after spinning.
-
     // First, update the texture of the visible symbols to the desired ones.
     for (let i = 0; i < symbolIds.length && i < this.rowCount; i++) {
       const sprite = this.symbols[i];
@@ -305,13 +327,6 @@ class Reel {
       }
     }
 
-    // Calculate the target y for the strip.
-    // We want the first row (index 0) to be at the top of the visible area.
-    // The visible area starts at `-maskHeight/2` if the mask is centered.
-    // Since the mask is centered on the container, we need to offset.
-    // Actually, our mask is positioned at (0,0) with height = rowCount * symbolHeight.
-    // The top of the mask is at y=0. We want the first symbol's center at y = symbolHeight/2.
-    // So strip.y should be 0.
     const centerRow = Math.floor(this.rowCount / 2);
     const targetY = -centerRow * this.symbolHeight;
 
@@ -322,10 +337,11 @@ class Reel {
     }
 
     // Animate to the target position.
-    const duration = 0.6 + Math.random() * 0.4;
+    const duration = (0.6 + Math.random() * 0.4) / this.speedMultiplier;
+    const finalDuration = this.skipDelay ? 0.1 : duration;
     this.tween = gsap.to(this.strip, {
       y: targetY,
-      duration: duration,
+      duration: finalDuration,
       ease: 'power4.out',
       onComplete: () => {
         this._isSpinning = false;

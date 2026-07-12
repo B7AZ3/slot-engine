@@ -8,6 +8,10 @@ import { BalanceDisplay } from './BalanceDisplay.js';
 import { BetControls } from './BetControls.js';
 import { SpinButton } from './SpinButton.js';
 import { WinPopup } from './WinPopup.js';
+import { AutoplayManager } from '../features/AutoplayManager.js';
+import { Button } from './Button.js';
+import { Text } from './Text.js';
+
 
 export interface IUIManagerOptions {
   config: GameConfig;
@@ -24,12 +28,16 @@ export class UIManager implements IResizeable {
   private container: PIXI.Container & { destroy: () => void };
   private uiConfig: IUIConfig;
   private scale: number = 1;
+  private autoplayManager: AutoplayManager | null = null;
 
   // UI Components
-  private balanceDisplay: BalanceDisplay;
-  private betControls: BetControls;
-  private spinButton: SpinButton;
-  private winPopup: WinPopup;
+  public balanceDisplay: BalanceDisplay;
+  public betControls: BetControls;
+  public spinButton: SpinButton;
+  public winPopup: WinPopup;
+  public autoplayBtn: Button;
+  public fastSpinBtn: Button;
+  public autoplayRemainingText: PIXI.Text;
 
   // Cleanup listeners
   private listeners: (() => void)[] = [];
@@ -68,8 +76,64 @@ export class UIManager implements IResizeable {
       this.uiConfig
     );
 
+    this.autoplayBtn = new Button(
+      this.container,
+      { defaultTexture: 'btn_autoplay', elastic: true },
+      60, 60
+    );
+
+    // Adjust relative to the spin button
+    this.autoplayBtn.setPosition(-80, 20);
+
+    // Fast Spin toggle
+    this.fastSpinBtn = new Button(
+      this.container,
+      { defaultTexture: 'btn_fastspin_off', elastic: true },
+      40, 40
+    );
+    this.fastSpinBtn.setPosition(-140, 20);
+
+    // Autoplay remaining text
+    this.autoplayRemainingText = UIFactory.createText('', {
+      fontSize: 16,
+      fontFamily: 'Arial',
+      fill: 0xffffff,
+      align: 'center',
+    }, this.container);
+    this.autoplayRemainingText.x = -80;
+    this.autoplayRemainingText.y = -30;
+
     // Wire up events
     this.wireEvents();
+  }
+
+  setAutoplayManager(manager: AutoplayManager): void {
+    this.autoplayManager = manager;
+    // Wire up button clicks
+    this.autoplayBtn.onClick(() => {
+      if (this.autoplayManager && !this.autoplayManager.isActive()) {
+        // Show a popup to set number of spins 
+        const spins = 10; // could be configurable
+        this.autoplayManager.start();
+      } else {
+        this.autoplayManager?.stop();
+      }
+    });
+
+    this.fastSpinBtn.onClick(() => {
+      const newVal = !this.state.isFastSpin;
+      this.state.isFastSpin = newVal;
+      this.fastSpinBtn.setTexture(newVal ? 'btn_fastspin_on' : 'btn_fastspin_off');
+    });
+
+    // Listen to autoplay state changes
+    this.state.on('autoplayRemaining', (remaining) => {
+      this.autoplayRemainingText.text = remaining > 0 ? `${remaining}` : '';
+    });
+
+    this.state.on('isAutoplayActive', (active) => {
+      this.autoplayBtn.setTexture(active ? 'btn_autoplay_active' : 'btn_autoplay');
+    });
   }
 
   /**

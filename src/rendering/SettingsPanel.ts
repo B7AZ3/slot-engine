@@ -5,6 +5,7 @@ import { GameConfig } from '../core/GameConfig.js';
 import { GameEvents } from '../events/GameEvents.js';
 import { LocalizationService } from '../assets/LocalizationService.js';
 import { SoundManager } from '../assets/SoundManager.js';
+import { SessionTimer } from '../features/SessionTimer.js';
 
 export class SettingsPanel {
   private container: PIXI.Container & { destroy: () => void };
@@ -21,19 +22,25 @@ export class SettingsPanel {
   private visible: boolean = false;
   private cleanupListeners: (() => void)[] = [];
 
+  private sessionTimer: SessionTimer; // Track reference to the session timer instance
+  private sessionLimitToggle!: PIXI.Text & { destroy: () => void }; // Text UI element for session length limit
+  private sessionElapsedText!: PIXI.Text & { destroy: () => void }; // Text UI element showing current session elapsed time
+
   constructor(
     parent: PIXI.Container,
     state: GameState,
     config: GameConfig,
     events: GameEvents,
     localization: LocalizationService,
-    soundManager: SoundManager
+    soundManager: SoundManager,
+    sessionTimer: SessionTimer,
   ) {
     this.state = state;
     this.config = config;
     this.events = events;
     this.localization = localization;
     this.soundManager = soundManager;
+    this.sessionTimer = sessionTimer;
 
     // Main container (hidden by default)
     this.container = UIFactory.createContainer(parent);
@@ -147,6 +154,84 @@ export class SettingsPanel {
 
     yOffset += 50;
 
+    // Session Limit Toggle
+    const sessionLimitLabel = UIFactory.createText(
+      this.localization.get('settings_session_limit', true) || 'Session Limit',
+      {
+        fontSize: 18,
+        fontFamily: 'Arial',
+        fill: 0xffffff,
+        align: 'left',
+      },
+      this.container
+    );
+    sessionLimitLabel.x = -180;
+    sessionLimitLabel.y = yOffset;
+
+
+    // Show initial session limit minutes
+    const currentLimit = this.sessionTimer.getElapsed ? Math.floor((this.sessionTimer.getElapsed() || 0) / 60) : 60; 
+    this.sessionLimitToggle = UIFactory.createText(
+      `${this.sessionTimer.getElapsed ? Math.floor(this.sessionTimer.getElapsed() / 60) : 60} MIN`,
+      {
+        fontSize: 18,
+        fontFamily: 'Arial',
+        fill: 0x88ddff,
+        fontWeight: 'bold',
+        align: 'right',
+      },
+      this.container
+    );
+    this.sessionLimitToggle.x = 180;
+    this.sessionLimitToggle.y = yOffset;
+    this.sessionLimitToggle.anchor.set(1, 0.5);
+    this.sessionLimitToggle.interactive = true;
+    this.sessionLimitToggle.cursor = 'pointer';
+    this.sessionLimitToggle.on('pointerdown', () => {
+      this.cycleSessionLimit();
+    });
+
+    yOffset += 50;
+
+    // Session Elapsed Display
+    const sessionElapsedLabel = UIFactory.createText(
+      this.localization.get('settings_session_elapsed', true) || 'Elapsed Time',
+      {
+        fontSize: 18,
+        fontFamily: 'Arial',
+        fill: 0xffffff,
+        align: 'left',
+      },
+      this.container
+    );
+    sessionElapsedLabel.x = -180;
+    sessionElapsedLabel.y = yOffset;
+
+    this.sessionElapsedText = UIFactory.createText(
+      this.sessionTimer.getFormatted(),
+      {
+        fontSize: 18,
+        fontFamily: 'Arial',
+        fill: 0xaaaaaa,
+        fontWeight: 'bold',
+        align: 'right',
+      },
+      this.container
+    );
+    this.sessionElapsedText.x = 180;
+    this.sessionElapsedText.y = yOffset;
+    this.sessionElapsedText.anchor.set(1, 0.5);
+
+    // Listen to live ticking events to update the setting display window in real-time
+    const unsubscribe = this.events.on('session:tick', (data: { formatted: string }) => {
+      if (this.visible && this.sessionElapsedText) {
+        this.sessionElapsedText.text = data.formatted;
+      }
+    });
+    this.cleanupListeners.push(unsubscribe);
+
+    yOffset += 50;
+
     // Language selector (if multiple languages available)
     const availableLangs = Object.keys(this.localization.getData());
     if (availableLangs.length > 1) {
@@ -229,9 +314,28 @@ export class SettingsPanel {
   }
 
   /**
+   * Cycle through available session duration limits.
+   */
+  private cycleSessionLimit(): void {
+    const options = [15, 30, 45, 60];
+    // Read the current stored state configuration directly from our settings storage loop
+    const currentLimit = (this.sessionTimer as any).limitMinutes || 60;
+    const currentIndex = options.indexOf(currentLimit);
+    const nextIndex = (currentIndex + 1) % options.length;
+    const newLimit = options[nextIndex]!;
+
+    this.sessionTimer.setLimit(newLimit);
+    this.sessionLimitToggle.text = `${newLimit} MIN`;
+  }
+
+  /**
    * Show the settings panel.
    */
   show(): void {
+    const currentLimit = (this.sessionTimer as any).limitMinutes || 60;
+    this.sessionLimitToggle.text = `${currentLimit} MIN`;
+    this.sessionElapsedText.text = this.sessionTimer.getFormatted();
+    
     this.container.visible = true;
     this.visible = true;
   }

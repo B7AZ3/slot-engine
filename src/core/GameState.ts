@@ -15,6 +15,9 @@ export class GameState implements IGameState {
   private _isBonusActive: boolean = false;
   private _freeSpinsRemaining: number = 0;
   private _lastSpinResult: ISpinResult | null = null;
+  private _isAutoplayActive: boolean = false;
+  private _autoplayRemaining: number = 0;
+  private _isFastSpin: boolean = false;
 
   // Listeners
   private listeners: Map<keyof GameState, Set<StateListener<any>>> = new Map();
@@ -71,6 +74,27 @@ export class GameState implements IGameState {
     this.notify('lastSpinResult', this._lastSpinResult, old);
   }
 
+  get isAutoplayActive(): boolean { return this._isAutoplayActive; }
+  set isAutoplayActive(value: boolean) {
+    const old = this._isAutoplayActive;
+    this._isAutoplayActive = value;
+    this.notify('isAutoplayActive', value, old);
+  }
+
+  get autoplayRemaining(): number { return this._autoplayRemaining; }
+  set autoplayRemaining(value: number) {
+    const old = this._autoplayRemaining;
+    this._autoplayRemaining = Math.max(0, value);
+    this.notify('autoplayRemaining', this._autoplayRemaining, old);
+  }
+
+  get isFastSpin(): boolean { return this._isFastSpin; }
+  set isFastSpin(value: boolean) {
+    const old = this._isFastSpin;
+    this._isFastSpin = value;
+    this.notify('isFastSpin', value, old);
+  }
+
   /**
    * Subscribe to changes on a specific property.
    * Returns a cleanup function.
@@ -120,5 +144,8 @@ export class GameState implements IGameState {
     this.isBonusActive = false;
     this.freeSpinsRemaining = 0;
     this.lastSpinResult = null;
+    this._isAutoplayActive = false;
+    this._autoplayRemaining = 0;
+    this._isFastSpin = false;
   }
 }

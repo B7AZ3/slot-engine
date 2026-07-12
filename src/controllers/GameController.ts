@@ -14,6 +14,10 @@ import { PaytableRenderer } from '../rendering/PaytableRenderer.js';
 import { HistoryRenderer } from '../rendering/HistoryRenderer.js';
 import { SettingsPanel } from '../rendering/SettingsPanel.js';
 import { BonusController } from './BonusController.js';
+import { SessionTimer } from '../features/SessionTimer.js';
+import { AutoplayManager } from '../features/AutoplayManager.js';
+import { FastSpinManager } from '../features/FastSpinManager.js';
+import { AutoplayControls } from '../rendering/AutoplayControls.js';
 
 export interface IGameControllerOptions {
   config: GameConfig;
@@ -38,6 +42,9 @@ export class GameController {
   private platformBridge: IPlatformBridge;
   private events: GameEvents;
   private bonusController: BonusController;
+  private autoplayManager: AutoplayManager;
+  private autoplayControls: AutoplayControls;
+  private fastSpinManager: FastSpinManager;
 
   // UI Components
   private loadingScreen: LoadingScreen;
@@ -46,6 +53,7 @@ export class GameController {
   private paytableRenderer: PaytableRenderer;
   private historyRenderer: HistoryRenderer;
   private settingsPanel: SettingsPanel;
+  private sessionTimer: SessionTimer;
 
   private bootComplete: boolean = false;
   private isReady: boolean = false;
@@ -133,6 +141,14 @@ export class GameController {
       options.symbolMap
     );
 
+    // Initialize Session Timer
+    this.sessionTimer = new SessionTimer({
+      state: this.state,
+      events: this.events,
+      platform: this.platformBridge,
+      localization: this.assetLoader.getLocalization()
+    });
+
     // Settings panel
     this.settingsPanel = new SettingsPanel(
       this.mainUIContainer,
@@ -140,8 +156,54 @@ export class GameController {
       this.config,
       this.events,
       this.assetLoader.getLocalization(),
-      this.assetLoader.getSoundManager()
+      this.assetLoader.getSoundManager(),
+      this.sessionTimer
     );
+
+    // --- Autoplay & Fast Spin ---
+    this.autoplayControls = new AutoplayControls(this.mainUIContainer, this.events);
+    this.autoplayControls.setPosition(0, 160); // below spin button
+
+    // FastSpinManager
+    this.fastSpinManager = new FastSpinManager({
+      events: this.events,
+      onSpeedChange: (speed) => {
+        this.reelRenderer.setSpeedMultiplier(speed);
+      },
+      onSkipWinAnimations: (skip) => {
+        this.events.emit('fastspin:skipWinAnimations', { skip });
+      },
+      onSkipReelDelay: (skip) => {
+        this.reelRenderer.setSkipDelay(skip);
+      },
+    });
+
+    // AutoplayManager
+    this.autoplayManager = new AutoplayManager({
+      state: this.state,
+      events: this.events,
+      spinCallback: () => {
+        // Trigger a spin (same as normal spin)
+        this.spin();
+      },
+      fastSpinCallback: (enabled) => {
+        if (enabled) {
+          this.fastSpinManager.enable();
+        } else {
+          this.fastSpinManager.disable();
+        }
+      },
+      config: {
+        rounds: 10,
+        stopOnWin: 0,
+        stopOnBalanceBelow: 0,
+        stopOnBonus: true,
+        fastSpin: false,
+      },
+    });
+
+    // Start the session tracking immediately
+    this.sessionTimer.start();
 
     // Register message handlers
     this.registerMessageHandlers();
@@ -327,6 +389,10 @@ export class GameController {
     this.historyRenderer.destroy();
     this.settingsPanel.destroy();
 
+    if (this.sessionTimer) {
+      this.sessionTimer.destroy();
+    }
+
     // Disconnect WebSocket
     if (this.wsClient) {
       this.wsClient.disconnect();
@@ -486,6 +552,41 @@ export class GameController {
       this.events.emit('ui:refresh', {});
     });
     this.eventCleanups.push(langCleanup);
+
+    const autoplayStartCleanup = this.events.on('autoplay:start', (config) => {
+      this.autoplayManager.start(config);
+    });
+    this.eventCleanups.push(autoplayStartCleanup);
+
+    const autoplayStopCleanup = this.events.on('autoplay:stop', () => {
+      this.autoplayManager.stop();
+    });
+    this.eventCleanups.push(autoplayStopCleanup);
+
+    const autoplayToggleFastSpinCleanup = this.events.on('autoplay:toggleFastSpin', () => {
+      const current = this.autoplayManager.isFastSpin();
+      this.autoplayManager.toggleFastSpin(!current);
+    });
+    this.eventCleanups.push(autoplayToggleFastSpinCleanup);
+
+    const fastSpinToggleCleanup = this.events.on('fastspin:toggle', () => {
+      this.fastSpinManager.toggle();
+    });
+    this.eventCleanups.push(fastSpinToggleCleanup);
+
+    // Update spin button with autoplay state
+    const autoplayStateCleanup = this.events.on('autoplay:started', (state) => {
+      this.uiManager.spinButton.setAutoplayActive(true);
+    });
+    const autoplayStoppedCleanup = this.events.on('autoplay:stopped', () => {
+      this.uiManager.spinButton.setAutoplayActive(false);
+    });
+    this.eventCleanups.push(autoplayStateCleanup, autoplayStoppedCleanup);
+
+    // Update spin button stop callback
+    this.uiManager.spinButton.onAutoplayStop(() => {
+      this.autoplayManager.stop();
+    });
   }
 
   private handleSpinResult(message: IWebSocketMessage): void {

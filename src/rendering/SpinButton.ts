@@ -7,6 +7,9 @@ export class SpinButton {
   private button: Button;
   private state: GameState;
   private isSpinning: boolean = false;
+  private _autoplayActive: boolean = false;
+  private _originalTexture: string = 'btn_spin';
+  private _autoplayTexture: string = 'btn_stop'; // you'll need this texture
 
   constructor(parent: PIXI.Container, state: GameState, config: IUIConfig) {
     this.state = state;
@@ -25,10 +28,12 @@ export class SpinButton {
     );
 
     this.button.onClick(() => {
-      if (!this.isSpinning && !this.state.isSpinning) {
-        // Emit spin request via GameController
-        // The controller will listen for this event.
-        // We can use the GameEvents instance if we have it, but for simplicity we'll use a callback.
+      if (this._autoplayActive) {
+        // Stop autoplay
+        if (this._autoplayStopCallback) {
+          this._autoplayStopCallback();
+        }
+      } else if (!this.isSpinning && !this.state.isSpinning) {
         if (this._spinCallback) {
           this._spinCallback();
         }
@@ -70,5 +75,20 @@ export class SpinButton {
    */
   destroy(): void {
     this.button.destroy();
+  }
+
+  setAutoplayActive(active: boolean): void {
+    this._autoplayActive = active;
+    if (active) {
+      this.button.setTexture(this._autoplayTexture);
+    } else {
+      this.button.setTexture(this._originalTexture);
+    }
+  }
+
+  private _autoplayStopCallback: (() => void) | null = null;
+
+  onAutoplayStop(callback: () => void): void {
+    this._autoplayStopCallback = callback;
   }
 }

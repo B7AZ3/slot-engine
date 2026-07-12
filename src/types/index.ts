@@ -310,3 +310,43 @@ export interface IBetState {
   maxBet: number;
   step: number;
 }
+
+/**
+ * Autoplay configuration.
+ */
+export interface IAutoplayConfig {
+  /** Number of spins to play (default: 10) */
+  rounds: number;
+  /** Stop if any win exceeds this amount (0 = no stop) */
+  stopOnWin?: number;
+  /** Stop if balance drops below this amount */
+  stopOnBalanceBelow?: number;
+  /** Stop if a bonus is triggered */
+  stopOnBonus?: boolean;
+  /** Enable fast spin mode */
+  fastSpin?: boolean;
+}
+
+/**
+ * Autoplay state.
+ */
+export interface IAutoplayState {
+  active: boolean;
+  roundsTotal: number;
+  roundsRemaining: number;
+  roundsCompleted: number;
+  fastSpin: boolean;
+  paused: boolean;
+}
+
+/**
+ * Fast spin configuration.
+ */
+export interface IFastSpinConfig {
+  /** Speed multiplier (e.g., 2 = twice as fast) */
+  speedMultiplier: number;
+  /** Skip win animations */
+  skipWinAnimations: boolean;
+  /** Skip reel stop delay */
+  skipReelDelay: boolean;
+}
