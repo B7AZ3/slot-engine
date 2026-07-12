@@ -421,3 +421,29 @@ export interface IPaylineRendererConfig {
   /** Pulse duration in seconds (default: 0.8) */
   pulseDuration?: number;
 }
+
+export interface IDebugConfig {
+  /** Enable debug mode (default: false) */
+  enabled?: boolean;
+  /** Keyboard shortcuts (default: true) */
+  keyboardShortcuts?: boolean;
+  /** Log level: 'none' | 'minimal' | 'full' (default: 'minimal') */
+  logLevel?: 'none' | 'minimal' | 'full';
+  /** Force a specific RNG seed (default: undefined) */
+  seed?: number;
+}
+
+export interface IForceSpinResult {
+  /** Symbol IDs for each reel (top-to-bottom order) */
+  reels: number[][];
+  /** Total win amount */
+  totalWin: number;
+  /** Win lines (optional) */
+  winLines?: {
+    lineIndex: number;
+    symbolId: number;
+    multiplier: number;
+    winAmount: number;
+    positions: { reel: number; row: number }[];
+  }[];
+}

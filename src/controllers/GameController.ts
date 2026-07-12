@@ -20,7 +20,9 @@ import { AutoplayControls } from '../rendering/AutoplayControls.js';
 import { FullscreenManager } from '../features/FullscreenManager.js';
 import { LogoAnimator } from '../rendering/LogoAnimator.js';
 import { PaylineRenderer } from '../rendering/PaylineRenderer.js';
-import { type IPlatformBridge, type IWebSocketMessage, type ISpinRequest, type ISpinResponse, type SymbolMap, type IWinLineResult } from '../types/index.js';
+import { ScreenShake } from '../features/ScreenShake.js';
+import { DebugManager } from '../features/DebugManager.js';
+import { type IPlatformBridge, type IWebSocketMessage, type ISpinRequest, type ISpinResponse, type SymbolMap, type IForceSpinResult } from '../types/index.js';
 
 
 export interface IGameControllerOptions {
@@ -52,6 +54,8 @@ export class GameController {
   private fullscreenManager: FullscreenManager;
   private logoAnimator: LogoAnimator;
   private paylineRenderer: PaylineRenderer;
+  private screenShake: ScreenShake;
+  private debugManager: DebugManager;
 
   // UI Components
   private loadingScreen: LoadingScreen;
@@ -127,6 +131,49 @@ export class GameController {
         decimalSeparator: this.config.decimalSeparator,
         thousandSeparator: this.config.thousandSeparator,
         minDecimalPlaces: this.config.minDecimalPlaces,
+      },
+    });
+
+    // Debug Manager
+    this.debugManager = new DebugManager({
+      state: this.state,
+      events: this.events,
+      config: this.config,
+      debugConfig: {
+        enabled: false,
+        keyboardShortcuts: true,
+        logLevel: 'full',
+        seed: undefined,
+      },
+      onForceSpin: (result: IForceSpinResult) => {
+        // Override the normal spin result with the forced result
+        // This is a mock handler that bypasses the WebSocket
+        console.log('[GameController] Forced spin result:', result);
+        // Create a mock message
+        const mockMessage = {
+          type: 'SPIN',
+          data: {
+            result: result.reels,
+            totalWin: result.totalWin,
+            winLines: result.winLines || [],
+            bonusTriggered: false,
+            freeSpinsRemaining: 0,
+          },
+        };
+        this.handleSpinResult(mockMessage);
+      },
+      onSetBalance: (amount: number) => {
+        this.state.balance = amount;
+      },
+      onToggleFastSpin: (enabled: boolean) => {
+        // Toggle fast spin via the fast spin manager
+        if (this.fastSpinManager) {
+          if (enabled) {
+            this.fastSpinManager.enable();
+          } else {
+            this.fastSpinManager.disable();
+          }
+        }
       },
     });
 
@@ -209,9 +256,31 @@ export class GameController {
       this.sessionTimer
     );
 
-    // --- Autoplay & Fast Spin ---
+    // Autoplay & Fast Spin
     this.autoplayControls = new AutoplayControls(this.mainUIContainer, this.events);
     this.autoplayControls.setPosition(0, 160); // below spin button
+
+    // Screen Shake
+    this.screenShake = new ScreenShake({
+      container: this.mainUIContainer, // or a specific container you want to shake
+      events: this.events,
+      config: {
+        duration: 400,
+        intensity: 12,
+        steps: 10,
+        fadeOutDuration: 150,
+      },
+    });
+    this.events.on('win', (data) => {
+      if (data.amount > 0) {
+        // Shake intensity based on win amount
+        const intensity = Math.min(20, 5 + data.amount / 10);
+        this.screenShake.shake({ intensity, duration: 400 });
+      }
+    });
+    this.events.on('bonus:trigger', () => {
+      this.screenShake.shake({ intensity: 15, duration: 600 });
+    });
 
     // FastSpinManager
     this.fastSpinManager = new FastSpinManager({
