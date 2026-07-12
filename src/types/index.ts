@@ -350,3 +350,26 @@ export interface IFastSpinConfig {
   /** Skip reel stop delay */
   skipReelDelay: boolean;
 }
+
+export interface ILogoConfig {
+  /** Texture key for the logo image (optional) */
+  imageTexture?: string;
+  /** Logo text (optional) */
+  text?: string;
+  /** Text style */
+  textStyle?: Partial<PIXI.TextStyle>;
+  /** Animation duration in seconds (default: 0.8) */
+  duration?: number;
+  /** Scale factor at peak (default: 1.2) */
+  scalePeak?: number;
+  /** Initial scale (default: 0.5) */
+  scaleStart?: number;
+  /** Initial alpha (default: 0) */
+  alphaStart?: number;
+  /** Ease function for GSAP (default: 'back.out(1.7)') */
+  ease?: string;
+  /** Auto-hide after animation (default: true) */
+  autoHide?: boolean;
+  /** Delay before hiding (seconds) (default: 1.0) */
+  hideDelay?: number;
+}

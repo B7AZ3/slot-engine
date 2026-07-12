@@ -18,6 +18,9 @@ import { SessionTimer } from '../features/SessionTimer.js';
 import { AutoplayManager } from '../features/AutoplayManager.js';
 import { FastSpinManager } from '../features/FastSpinManager.js';
 import { AutoplayControls } from '../rendering/AutoplayControls.js';
+import { FullscreenManager } from '../features/FullscreenManager.js';
+import { LogoAnimator } from '../rendering/LogoAnimator.js';
+
 
 export interface IGameControllerOptions {
   config: GameConfig;
@@ -45,6 +48,8 @@ export class GameController {
   private autoplayManager: AutoplayManager;
   private autoplayControls: AutoplayControls;
   private fastSpinManager: FastSpinManager;
+  private fullscreenManager: FullscreenManager;
+  private logoAnimator: LogoAnimator;
 
   // UI Components
   private loadingScreen: LoadingScreen;
@@ -202,6 +207,16 @@ export class GameController {
       },
     });
 
+    // Fullscreen Manager
+    this.fullscreenManager = new FullscreenManager({
+      events: this.events,
+      element: document.documentElement, // or the game container element
+    });
+    const fullscreenToggleCleanup = this.events.on('ui:toggleFullscreen', async () => {
+      await this.fullscreenManager.toggle();
+    });
+    this.eventCleanups.push(fullscreenToggleCleanup);
+
     // Start the session tracking immediately
     this.sessionTimer.start();
 
@@ -227,6 +242,28 @@ export class GameController {
         [{ label: 'Retry', action: () => this.start() }]
       );
     });
+
+    // --- Logo Animation ---
+    this.logoAnimator = new LogoAnimator(
+      this.mainUIContainer,
+      this.events,
+      {
+        imageTexture: 'logo_image', // The texture key provided by the host
+        text: 'SLOT ENGINE',
+        textStyle: {
+          fontSize: 64,
+          fontFamily: 'Arial',
+          fill: 0xffd700,
+          fontWeight: 'bold',
+          align: 'center',
+        },
+        duration: 0.8,
+        scalePeak: 1.3,
+        autoHide: true,
+        hideDelay: 0.8,
+      }
+    );
+    this.logoAnimator.setPosition(0, 0);
   }
 
   /**
@@ -263,9 +300,7 @@ export class GameController {
 
     try {
       // Step 1: Load assets
-      this.events.emit('loading:progress', { progress: 0.1, phase: 'Loading assets...' });
-      const loadResult = await this.assetLoader.loadAll();
-      this.events.emit('loading:progress', { progress: 0.6, phase: 'Assets loaded' });
+      await this.loadAssets();
 
       // Step 2: Connect WebSocket
       this.events.emit('loading:progress', { progress: 0.7, phase: 'Connecting...' });

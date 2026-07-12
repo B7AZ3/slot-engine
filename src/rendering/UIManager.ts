@@ -37,6 +37,7 @@ export class UIManager implements IResizeable {
   public winPopup: WinPopup;
   public autoplayBtn: Button;
   public fastSpinBtn: Button;
+  public fullscreenButton: Button;
   public autoplayRemainingText: PIXI.Text;
 
   // Cleanup listeners
@@ -103,6 +104,23 @@ export class UIManager implements IResizeable {
     this.autoplayRemainingText.x = -80;
     this.autoplayRemainingText.y = -30;
 
+    // Fullscreen Button
+    this.fullscreenButton = new Button(
+      this.container,
+      {
+        defaultTexture: 'btn_fullscreen',
+        hoverTexture: 'btn_fullscreen_hover',
+        pressedTexture: 'btn_fullscreen_pressed',
+        elastic: true,
+        scale: 0.8,
+      },
+      40, 40
+    );
+    this.fullscreenButton.setPosition(120 / 2 - 50, -120 / 2 + 50);
+    this.fullscreenButton.onClick(() => {
+      this.events.emit('ui:toggleFullscreen', {});
+    });
+
     // Wire up events
     this.wireEvents();
   }
@@ -156,6 +174,8 @@ export class UIManager implements IResizeable {
 
     // Win popup: center
     this.winPopup.setPosition(0, 0);
+
+    this.fullscreenButton.setPosition(width / 2 - 50, -height / 2 + 50);
   }
 
   /**
@@ -174,6 +194,7 @@ export class UIManager implements IResizeable {
     }
     this.listeners = [];
     this.container.destroy(true);
+    this.fullscreenButton.destroy();
   }
 
   private wireEvents(): void {

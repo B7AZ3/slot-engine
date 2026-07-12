@@ -49,6 +49,7 @@ export { DustParticleSystem } from './rendering/particles/DustParticleSystem.js'
 export { FallingParticleSystem } from './rendering/particles/FallingParticleSystem.js';
 export { BurstParticleSystem } from './rendering/particles/BurstParticleSystem.js';
 export { AutoplayControls } from './rendering/AutoplayControls.js';
+export { LogoAnimator } from './rendering/LogoAnimator.js';
 
 // Controllers
 export { GameController } from './controllers/GameController.js';
@@ -61,3 +62,4 @@ export { SettingsService } from './services/SettingsService.js';
 export { SessionTimer } from './features/SessionTimer.js';
 export { AutoplayManager } from './features/AutoplayManager.js';
 export { FastSpinManager } from './features/FastSpinManager.js';
+export { FullscreenManager } from './features/FullscreenManager.js';
