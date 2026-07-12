@@ -11,6 +11,12 @@ export class ReelRenderer implements IResizeable {
   private scale: number = 1;
   private speedMultiplier: number = 1;
   private skipDelay: boolean = false;
+  private _reelWidth: number = 0;
+  private _reelHeight: number = 0;
+  private _symbolWidth: number = 0;
+  private _symbolHeight: number = 0;
+  private _reelXOffsets: number[] = [];
+  private _rowYOffsets: number[] = [];
 
   // Callbacks
   private onSpinStartCallback?: () => void;
@@ -28,29 +34,60 @@ export class ReelRenderer implements IResizeable {
     };
     this.symbolMap = symbolMap;
 
+    // Store dimensions for PaylineRenderer
+    this._symbolWidth = this.config.symbolWidth;
+    this._symbolHeight = this.config.symbolHeight;
+    this._reelWidth = this.config.symbolWidth + (this.config.spacing || 0);
+    this._reelHeight = this.config.symbolHeight * this.config.rowCount;
+
     // Create a container for all reels
     this.container = UIFactory.createContainer(parent);
     this.container.pivot.set(0, 0);
 
-    // Build each reel
-    const totalWidth = this.config.reelCount * (this.config.symbolWidth + this.config.spacing!);
-    const startX = -totalWidth / 2 + this.config.symbolWidth / 2;
+    // Calculate positions
+    const totalWidth = this.config.reelCount * this._reelWidth;
+    const startX = -totalWidth / 2 + this._symbolWidth / 2;
+    const startY = -this._reelHeight / 2 + this._symbolHeight / 2;
 
+    // Build each reel and store its X offset
     for (let i = 0; i < this.config.reelCount; i++) {
+      const x = startX + i * this._reelWidth;
+      this._reelXOffsets.push(x);
       const reel = new Reel(
         this.container,
         this.config,
         this.symbolMap,
-        startX + i * (this.config.symbolWidth + this.config.spacing!),
+        x,
         this.scale
       );
       this.reels.push(reel);
     }
+
+    // Store row Y offsets
+    for (let i = 0; i < this.config.rowCount; i++) {
+      this._rowYOffsets.push(startY + i * this._symbolHeight);
+    }
   }
 
-  /**
-   * Set the scale factor (called on resize).
-   */
+  getReelDimensions(): {
+    reelWidth: number;
+    reelHeight: number;
+    symbolWidth: number;
+    symbolHeight: number;
+    reelXOffsets: number[];
+    rowYOffsets: number[];
+  } | null {
+    if (this.reels.length === 0) return null;
+    return {
+      reelWidth: this._reelWidth,
+      reelHeight: this._reelHeight,
+      symbolWidth: this._symbolWidth,
+      symbolHeight: this._symbolHeight,
+      reelXOffsets: this._reelXOffsets,
+      rowYOffsets: this._rowYOffsets,
+    };
+  }
+
   onResize(width: number, height: number, scale: number): void {
     this.scale = scale;
     for (const reel of this.reels) {
@@ -58,10 +95,6 @@ export class ReelRenderer implements IResizeable {
     }
   }
 
-  /**
-   * Set the initial reel state (symbols to display before any spin).
-   * If not called, reels are populated randomly.
-   */
   setInitialState(result: ReelResult): void {
     for (let i = 0; i < this.reels.length && i < result.length; i++) {
       this.reels[i]!.setSymbols(result[i]!);
@@ -70,7 +103,6 @@ export class ReelRenderer implements IResizeable {
 
   setSpeedMultiplier(multiplier: number): void {
     this.speedMultiplier = Math.max(0.5, Math.min(5, multiplier));
-    // Pass to each reel
     for (const reel of this.reels) {
       reel.setSpeedMultiplier(this.speedMultiplier);
     }
@@ -83,10 +115,6 @@ export class ReelRenderer implements IResizeable {
     }
   }
 
-
-  /**
-   * Start spinning all reels.
-   */
   spin(): void {
     if (this.onSpinStartCallback) {
       this.onSpinStartCallback();
@@ -96,14 +124,9 @@ export class ReelRenderer implements IResizeable {
     }
   }
 
-  /**
-   * Stop all reels at the specified positions.
-   * @param stopPositions - Array of symbol IDs for each reel (top-to-bottom order).
-   */
   stop(stopPositions: ReelResult): void {
     for (let i = 0; i < this.reels.length && i < stopPositions.length; i++) {
       this.reels[i]!.stopAt(stopPositions[i]!, () => {
-        // Check if all reels have stopped
         const allStopped = this.reels.every((r) => !r.isSpinning);
         if (allStopped && this.onSpinCompleteCallback) {
           this.onSpinCompleteCallback(stopPositions);
@@ -112,30 +135,18 @@ export class ReelRenderer implements IResizeable {
     }
   }
 
-  /**
-   * Set the spin start callback.
-   */
   onSpinStart(cb: () => void): void {
     this.onSpinStartCallback = cb;
   }
 
-  /**
-   * Set the spin complete callback.
-   */
   onSpinComplete(cb: (result: ReelResult) => void): void {
     this.onSpinCompleteCallback = cb;
   }
 
-  /**
-   * Get the underlying container (for positioning in the scene).
-   */
   getContainer(): PIXI.Container {
     return this.container;
   }
 
-  /**
-   * Destroy the reels and clean up.
-   */
   destroy(): void {
     for (const reel of this.reels) {
       reel.destroy();

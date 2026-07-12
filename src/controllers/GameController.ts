@@ -5,7 +5,6 @@ import { Renderer } from '../rendering/Renderer.js';
 import { AssetLoader } from '../assets/AssetLoader.js';
 import { WebSocketClient } from '../network/WebSocketClient.js';
 import { MessageHandler } from '../network/MessageHandler.js';
-import { type IPlatformBridge, type IWebSocketMessage, type ISpinRequest, type ISpinResponse, type SymbolMap } from '../types/index.js';
 import { GameEvents } from '../events/GameEvents.js';
 import { ReelRenderer } from '../rendering/ReelRenderer.js';
 import { UIManager } from '../rendering/UIManager.js';
@@ -20,6 +19,8 @@ import { FastSpinManager } from '../features/FastSpinManager.js';
 import { AutoplayControls } from '../rendering/AutoplayControls.js';
 import { FullscreenManager } from '../features/FullscreenManager.js';
 import { LogoAnimator } from '../rendering/LogoAnimator.js';
+import { PaylineRenderer } from '../rendering/PaylineRenderer.js';
+import { type IPlatformBridge, type IWebSocketMessage, type ISpinRequest, type ISpinResponse, type SymbolMap, type IWinLineResult } from '../types/index.js';
 
 
 export interface IGameControllerOptions {
@@ -50,6 +51,7 @@ export class GameController {
   private fastSpinManager: FastSpinManager;
   private fullscreenManager: FullscreenManager;
   private logoAnimator: LogoAnimator;
+  private paylineRenderer: PaylineRenderer;
 
   // UI Components
   private loadingScreen: LoadingScreen;
@@ -137,6 +139,48 @@ export class GameController {
       },
       this.assetLoader.getLocalization()
     );
+
+    // Payline Renderer 
+    this.paylineRenderer = new PaylineRenderer(
+      this.mainUIContainer,
+      [], // line patterns will be set after we have them
+      {
+        color: 0xffd700,
+        alpha: 0.9,
+        lineWidth: 4,
+        glowWidth: 3,
+        glowColor: 0xffd700,
+        glowAlpha: 0.3,
+        drawDuration: 0.6,
+        pulse: true,
+        pulseDuration: 0.8,
+      }
+    );
+
+    this.events.on('reel:ready', () => {
+      const reelContainer = this.reelRenderer.getContainer();
+      const bounds = reelContainer.getBounds();
+      // For simplicity, we'll just pass the offsets from the reel renderer
+      // We need to expose these from ReelRenderer
+      const dims = this.reelRenderer.getReelDimensions();
+      if (dims) {
+        this.paylineRenderer.setReelDimensions(
+          dims.reelWidth,
+          dims.reelHeight,
+          dims.symbolWidth,
+          dims.symbolHeight,
+          dims.reelXOffsets,
+          dims.rowYOffsets
+        );
+        this.paylineRenderer.setScale(this.renderer.scale);
+      }
+    });
+
+    this.renderer.registerResizeable({
+      onResize: (width, height, scale) => {
+        this.paylineRenderer.setScale(scale);
+      },
+    });
 
     // History renderer
     this.historyRenderer = new HistoryRenderer(
@@ -513,6 +557,9 @@ export class GameController {
       if (message.data && message.data.bet !== undefined) {
         this.state.currentBet = message.data.bet;
       }
+      if (message.data && message.data.linePatterns) {
+        this.paylineRenderer.setLinePatterns(message.data.linePatterns);
+      }
       this.isReady = true;
       this.events.emit('game:ready', { state: this.state });
       this.platformBridge.ready();
@@ -524,6 +571,13 @@ export class GameController {
       this.handleSpinResult(message);
     });
     this.handlerCleanups.push(spinCleanup);
+    this.events.on('spin:complete', (data) => {
+      if (data.result && data.result.winLines && data.result.winLines.length > 0) {
+        this.paylineRenderer.drawWinLines(data.result.winLines);
+      } else {
+        this.paylineRenderer.clearLines();
+      }
+    });
 
     // Handle BONUS response
     const bonusCleanup = this.messageHandler.register('BONUS', (message) => {

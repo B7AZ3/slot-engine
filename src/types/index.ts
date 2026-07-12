@@ -373,3 +373,51 @@ export interface ILogoConfig {
   /** Delay before hiding (seconds) (default: 1.0) */
   hideDelay?: number;
 }
+
+/**
+ * A single payline pattern.
+ * Each element is { reel: number; row: number } (0-indexed).
+ */
+export type IPaylinePattern = { reel: number; row: number }[];
+
+/**
+ * A winning line result from a spin.
+ */
+export interface IWinLineResult {
+  /** Index of the line in the paytable */
+  lineIndex: number;
+  /** Symbol ID that formed the win */
+  symbolId: number;
+  /** Multiplier for the win */
+  multiplier: number;
+  /** Total win amount */
+  winAmount: number;
+  /** Positions (reel, row) of the winning symbols */
+  positions: { reel: number; row: number }[];
+}
+
+/**
+ * Configuration for the payline renderer.
+ */
+export interface IPaylineRendererConfig {
+  /** Color of the line (default: 0xffd700) */
+  color?: number;
+  /** Alpha of the line (default: 0.8) */
+  alpha?: number;
+  /** Width of the line stroke (default: 3) */
+  lineWidth?: number;
+  /** Glow/outline width (default: 2) */
+  glowWidth?: number;
+  /** Glow color (default: same as line color) */
+  glowColor?: number;
+  /** Glow alpha (default: 0.3) */
+  glowAlpha?: number;
+  /** Duration of the draw animation in seconds (default: 0.5) */
+  drawDuration?: number;
+  /** Ease for the animation (default: 'power2.out') */
+  ease?: string;
+  /** Should lines pulse after drawing? (default: true) */
+  pulse?: boolean;
+  /** Pulse duration in seconds (default: 0.8) */
+  pulseDuration?: number;
+}

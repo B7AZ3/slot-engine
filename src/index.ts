@@ -50,6 +50,7 @@ export { FallingParticleSystem } from './rendering/particles/FallingParticleSyst
 export { BurstParticleSystem } from './rendering/particles/BurstParticleSystem.js';
 export { AutoplayControls } from './rendering/AutoplayControls.js';
 export { LogoAnimator } from './rendering/LogoAnimator.js';
+export { PaylineRenderer } from './rendering/PaylineRenderer.js';
 
 // Controllers
 export { GameController } from './controllers/GameController.js';
