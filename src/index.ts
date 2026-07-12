@@ -43,6 +43,11 @@ export { LoadingScreen } from './rendering/LoadingScreen.js';
 export { PaytableRenderer } from './rendering/PaytableRenderer.js';
 export { HistoryRenderer } from './rendering/HistoryRenderer.js';
 export { SettingsPanel } from './rendering/SettingsPanel.js';
+export { Particle } from './rendering/particles/Particle.js';
+export { ParticleSystem } from './rendering/particles/ParticleSystem.js';
+export { DustParticleSystem } from './rendering/particles/DustParticleSystem.js';
+export { FallingParticleSystem } from './rendering/particles/FallingParticleSystem.js';
+export { BurstParticleSystem } from './rendering/particles/BurstParticleSystem.js';
 
 // Controllers
 export { GameController } from './controllers/GameController.js';
